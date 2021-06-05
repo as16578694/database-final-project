@@ -78,6 +78,7 @@ var value = "";
 var zone = "";
 var itemCnt=0;
 var schedule=[];
+var scheduleClass=[]
 var dayCnt = 0;
 
 function changeStateNew(){
@@ -96,9 +97,11 @@ function changeStateNew(){
     xhr.setRequestHeader('Content-Type', 'application/json');
     xhr.send(JSON.stringify({
        day : (dayCnt).toString(), 
-       item : schedule
+       item : schedule,
+       itemClass : scheduleClass
     }));
     schedule = [];
+    scheduleClass = [];
 
     initial()
     state = 0
@@ -231,7 +234,8 @@ function addScheduleItem(){
     }
     else{
         itemCnt++;
-        schedule.push(value)
+        schedule.push(value);
+        scheduleClass.push(place);
         createDiv();
     }
 }
@@ -248,7 +252,7 @@ function switchSchedule(){
     if(index == '0'){
         for (var i=0;i<schedule.length;i++){
 
-            createDiv(height='100px', width='100px', setValue = true, valueParameter = schedule[i]);
+            createDiv(height='100px', width='100px', setValue = true, valueParameter = schedule[i], placeParameter = scheduleClass[i]);
         }
     }
     else{

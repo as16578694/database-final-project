@@ -90,6 +90,10 @@ def test():
         print(myList)
         session['jsonResult'] = jsonResult
 
+    if request.method == 'GET':
+        print('get')
+        db.engine.execute('delete from schedule')
+
     return render_template('Home.html')
 
 @app.route("/name", methods=['POST'])
@@ -105,6 +109,7 @@ def add():
         search_request = request.get_json()
         dayCnt = search_request['day']
         schedule = search_request['item']
+        scheduleClass = search_request['itemClass']
         
         query = "insert into schedule values("
         query = query+"'" + dayCnt+"',"
