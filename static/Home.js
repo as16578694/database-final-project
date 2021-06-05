@@ -1,3 +1,9 @@
+var color_dict = {
+    "S" : "#C1AE8D",
+    "H" : "#849271",
+    "R" : "#7A989A"
+}
+
 function createButton(content, height = '60px', width = '140px', setValue = false, value = -1){
     var btn = document.createElement('button');
     btn.textContent = content;
@@ -13,15 +19,17 @@ function createButton(content, height = '60px', width = '140px', setValue = fals
     document.getElementsByClassName("question area")[0].appendChild(btn);
 }
 
-function createDiv(content, height = '60px', width = '140px'){
+function createDiv(content, height = '100px', width = '100px'){
     var btn = document.createElement('button');
     btn.textContent = value;
     btn.style.height = height
     btn.style.width = width
-    //btn.style.margin = '15px'
-    btn.style.fontSize = '20px'
+
+    btn.style.fontSize = '15px'
     btn.classList.add("schedule-item")
-    //btn.value = value;
+    btn.style.backgroundColor = color_dict[place];
+    btn.value = value;
+    btn.id = value;
 
     document.getElementsByClassName("question area")[1].appendChild(btn);
 }
@@ -58,6 +66,8 @@ var type = "";
 var cont = false;
 var value = "";
 var zone = "";
+var itemCnt=0;
+var schedule=[];
 
 function changeStateNew(){
     alert("新增成功")
@@ -65,6 +75,19 @@ function changeStateNew(){
     var n = buttonList.length
     for(var i=0;i<n;i++)
         buttonList[0].remove();
+
+    scheduleJson = {};
+
+
+    var xhr = new XMLHttpRequest();
+    xhr.open("POST", '/add', true);
+    xhr.setRequestHeader('Content-Type', 'application/json');
+    xhr.send(JSON.stringify({
+       //column1
+    }));
+
+    
+    
     initial()
     state = 0
 }
@@ -161,7 +184,7 @@ function changeState(){
             break;
 
         case 6:
-            question.innerHTML = "<h3 class='question'>您要繼續選擇行程嗎?</h3>";
+            question.innerHTML = "<h3 class='question'>您要繼續一天的行程嗎?</h3>";
             createButton("是",height='60px', width = '140px', setValue=true, value='0');
             createButton("否",height='60px', width = '140px', setValue=true, value='1');
             buttonList = document.getElementsByClassName("choice")
@@ -179,8 +202,16 @@ function changeState(){
 }
 
 function addScheduleItem(){
-    createDiv()
 
+    if (itemCnt == 10){
+        alert("一天不要排太多行程喔!旅行是拿來放鬆的!")
+    }
+    else{
+        itemCnt++;
+        schedule.push(value)
+        createDiv();
+    }
+    
 }
 
 function nametest() {   

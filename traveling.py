@@ -96,5 +96,13 @@ def test():
 def index_name():
     return Response(json.dumps(session['jsonResult']),mimetype='application/json')
 
+@app.route("/add", methods=['POST'])
+def add():
+    if(request.method=='POST'):
+        session.clear()
+        search_request = request.get_json()
+        zone = search_request['zone']
+        place = search_request['place']
+
 if __name__ == "__main__":
 	app.run(host="0.0.0.0",port=5000,debug=True)
