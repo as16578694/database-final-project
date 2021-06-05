@@ -135,7 +135,7 @@ function changeState(){
             for(var i = 0; i<buttonList.length;i++){
                 buttonList[i].addEventListener("click", getTypeValue, false)
                 //若是吃的還有問題要問，跳過
-                if(place != 1){
+                if(place != 'R'){
                     buttonList[i].addEventListener("click", nametest, false)
                 }
             }
@@ -187,7 +187,7 @@ function nametest() {
     
     //send post to db
     var xhr = new XMLHttpRequest();
-    xhr.open("POST", '/', true);
+    xhr.open("POST", '/', false);
     xhr.setRequestHeader('Content-Type', 'application/json');
     xhr.send(JSON.stringify({
         place : place+type,
