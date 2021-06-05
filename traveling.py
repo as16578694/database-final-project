@@ -96,13 +96,49 @@ def test():
 def index_name():
     return Response(json.dumps(session['jsonResult']),mimetype='application/json')
 
+#schedule is a database saving user's schedule
 @app.route("/add", methods=['POST'])
 def add():
+    schedule=[]
     if(request.method=='POST'):
         session.clear()
         search_request = request.get_json()
-        zone = search_request['zone']
-        place = search_request['place']
+        dayCnt = search_request['day']
+        schedule = search_request['item']
+        
+        query = "insert into schedule values("
+        query = query+"'" + dayCnt+"',"
+        
+        for i in range(10):
+            if i < len(schedule):
+                query = query + "'" + schedule[i] + "',"
+            else :query=query+'NULL,'
+        
+        query = query[:-1]+");"
+        query_data = db.engine.execute(query)
+
+    return "ok"
+
+
+@app.route("/searchSchedule", methods=['POST'])
+def searchSchedule():
+    if(request.method=='POST'):
+        search_request = request.get_json()
+        index = str(search_request['index'])
+
+        query = "select * from schedule where day = '"+ index + "' limit 1;"
+        query_data = db.engine.execute(query)
+        
+        result = query_data.fetchone()
+        myList = []
+        for i in range(1,11):
+            if(result[i] != None):myList.append(result[i])
+
+        jsonResult = {}
+        jsonResult['schedule'] = myList
+        session['jsonResult'] = jsonResult
+        
+    return "ok"
 
 if __name__ == "__main__":
 	app.run(host="0.0.0.0",port=5000,debug=True)

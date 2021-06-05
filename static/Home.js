@@ -19,20 +19,30 @@ function createButton(content, height = '60px', width = '140px', setValue = fals
     document.getElementsByClassName("question area")[0].appendChild(btn);
 }
 
-function createDiv(content, height = '100px', width = '100px'){
+function createDiv(height = '100px', width = '100px',setValue = false, valueParameter = -1, placeParameter=-1){
     var btn = document.createElement('button');
-    btn.textContent = value;
+    
     btn.style.height = height
     btn.style.width = width
 
     btn.style.fontSize = '15px'
     btn.classList.add("schedule-item")
-    btn.style.backgroundColor = color_dict[place];
-    btn.value = value;
-    btn.id = value;
-
+    
+    if (setValue){
+        btn.style.backgroundColor = color_dict[placeParameter];
+        btn.textContent = valueParameter;
+        btn.value = valueParameter;
+        btn.id = valueParameter;
+    }
+    else{
+        btn.style.backgroundColor = color_dict[place];
+        btn.textContent = value;
+        btn.value = value;
+        btn.id = value;
+    }
     document.getElementsByClassName("question area")[1].appendChild(btn);
 }
+
 
 function getPlaceValue(){
     place = this.value;
@@ -68,9 +78,12 @@ var value = "";
 var zone = "";
 var itemCnt=0;
 var schedule=[];
+var dayCnt = 0;
 
 function changeStateNew(){
     alert("新增成功")
+
+    dayCnt++;
     var buttonList = document.getElementsByClassName("schedule-item")
     var n = buttonList.length
     for(var i=0;i<n;i++)
@@ -78,18 +91,27 @@ function changeStateNew(){
 
     scheduleJson = {};
 
-
     var xhr = new XMLHttpRequest();
-    xhr.open("POST", '/add', true);
+    xhr.open("POST", '/add', false);
     xhr.setRequestHeader('Content-Type', 'application/json');
     xhr.send(JSON.stringify({
-       //column1
+       day : (dayCnt).toString(), 
+       item : schedule
     }));
+    schedule = [];
 
-    
-    
     initial()
     state = 0
+    //var selectList = document.getElementsByClassName("select area")[0];
+
+    if(dayCnt > 0){
+        var selectList = document.getElementById("select");
+        var option = document.createElement("option");
+        option.value = dayCnt;
+        option.text = "Day" + dayCnt.toString();
+        selectList.appendChild(option);
+        
+    }
 }
 
 
@@ -203,6 +225,7 @@ function changeState(){
 
 function addScheduleItem(){
 
+    select.value = '0'
     if (itemCnt == 10){
         alert("一天不要排太多行程喔!旅行是拿來放鬆的!")
     }
@@ -211,7 +234,48 @@ function addScheduleItem(){
         schedule.push(value)
         createDiv();
     }
-    
+}
+
+var scheduleRequest;
+
+function switchSchedule(){
+    var index = select.value;
+    scheduleList = document.getElementsByClassName('schedule-item');
+    var n = scheduleList.length;
+    for(var i=0;i<n;i++)
+        scheduleList[0].remove();
+
+    if(index == '0'){
+        for (var i=0;i<schedule.length;i++){
+
+            createDiv(height='100px', width='100px', setValue = true, valueParameter = schedule[i]);
+        }
+    }
+    else{
+        var xhr = new XMLHttpRequest();
+        xhr.open("POST", '/searchSchedule', false);
+        xhr.setRequestHeader('Content-Type', 'application/json');
+        xhr.send(JSON.stringify({
+            index : index
+        }));
+
+        fetch('http://127.0.0.1:5000/name', {
+      method: 'POST', // or 'PUT'
+      headers: new Headers({
+        'Content-Type': 'application/json'
+        })
+        }).then(res => res.json())
+        .catch(error => console.error('Error:', error))
+        .then(function(response){
+            scheduleRequest = response.schedule;
+            console.log('Success:', response.schedule)
+            for (var i=0;i<scheduleRequest.length;i++){
+                createDiv(height='100px', width='100px', setValue = true, valueParameter = scheduleRequest[i])
+            }  
+        });
+        
+    }
+
 }
 
 function nametest() {   
@@ -259,4 +323,16 @@ function initial(){
         buttonList[i].addEventListener("click", changeState, false)
 }
 
-initial()
+
+var selectRoot = document.getElementsByClassName("select area")[0];
+var select = document.createElement('select');
+select.id = 'select';
+select.style.marginBottom = '15px';
+select.addEventListener('change', switchSchedule);
+var selectList = selectRoot.appendChild(select);
+var option = document.createElement("option");
+option.value = 0;
+option.text = "當前行程";
+selectList.appendChild(option);
+
+initial();
