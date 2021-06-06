@@ -7,11 +7,11 @@ var color_dict = {
 function createButton(content, height = '60px', width = '140px', setValue = false, value = -1){
     var btn = document.createElement('button');
     btn.textContent = content;
-    btn.style.height = height
-    btn.style.width = width
-    btn.style.margin = '15px'
-    btn.style.fontSize = '20px'
-    btn.classList.add("choice")
+    btn.style.height = height;
+    btn.style.width = width;
+    btn.style.margin = '15px';
+    btn.style.fontSize = '20px';
+    btn.classList.add("choice");
     if(setValue){
         btn.value = value;
     }
@@ -22,25 +22,29 @@ function createButton(content, height = '60px', width = '140px', setValue = fals
 function createDiv(height = '100px', width = '100px',setValue = false, valueParameter = -1, placeParameter=-1){
     var btn = document.createElement('button');
     
-    btn.style.height = height
-    btn.style.width = width
+    btn.style.height = height;
+    btn.style.width = width;
 
-    btn.style.fontSize = '15px'
-    btn.classList.add("schedule-item")
+    btn.style.fontSize = '15px';
+    btn.classList.add("schedule-item");
     
     if (setValue){
-        btn.style.backgroundColor = color_dict[placeParameter];
+        //btn.style.backgroundColor = color_dict[placeParameter];
         btn.textContent = valueParameter;
         btn.value = valueParameter;
         btn.id = valueParameter;
     }
     else{
-        btn.style.backgroundColor = color_dict[place];
+        //btn.style.backgroundColor = color_dict[place];
         btn.textContent = value;
         btn.value = value;
         btn.id = value;
     }
     document.getElementsByClassName("question area")[1].appendChild(btn);
+}
+
+function createTooptip(){
+    var tooltip = document.createElement('too')
 }
 
 
@@ -60,6 +64,22 @@ function getZoneValue(){
     zone = this.value
 }
 
+function initial(){
+    createButton("大眾運輸")
+    createButton("自行駕駛")
+
+    var buttonList = document.getElementsByClassName("choice")
+    for(var i = 0; i<buttonList.length;i++)
+        buttonList[i].addEventListener("click", changeState, false)
+}
+
+function sendPostRequestJson(route, jsonData){
+    var xhr = new XMLHttpRequest();
+    xhr.open("POST", route, false);
+    xhr.setRequestHeader('Content-Type', 'application/json');
+    xhr.send(jsonData);
+}
+
 var state = 0;
 //0 -> 公眾/自駕
 //1 -> 區域
@@ -73,17 +93,17 @@ var place = -1;
 //1 -> restaurant
 //2 -> hotel
 var type = "";
-var cont = false;
 var value = "";
 var zone = "";
 var itemCnt=0;
+var dayCnt = 0;
 var schedule=[];
 var scheduleClass=[]
-var dayCnt = 0;
 
 function changeStateNew(){
-    alert("新增成功")
 
+    alert("新增成功");
+    itemCnt = 0;
     dayCnt++;
     var buttonList = document.getElementsByClassName("schedule-item")
     var n = buttonList.length
@@ -105,15 +125,13 @@ function changeStateNew(){
 
     initial()
     state = 0
-    //var selectList = document.getElementsByClassName("select area")[0];
 
     if(dayCnt > 0){
         var selectList = document.getElementById("select");
         var option = document.createElement("option");
         option.value = dayCnt;
         option.text = "Day" + dayCnt.toString();
-        selectList.appendChild(option);
-        
+        selectList.appendChild(option);    
     }
 }
 
@@ -226,22 +244,72 @@ function changeState(){
     
 }
 
+var scheduleRouteCur = {};
+//行程小方塊
 function addScheduleItem(){
 
     select.value = '0'
+    //不給新增
     if (itemCnt == 10){
         alert("一天不要排太多行程喔!旅行是拿來放鬆的!")
     }
+    //新增成功
     else{
         itemCnt++;
         schedule.push(value);
         scheduleClass.push(place);
         createDiv();
+    
+    }
+    //若行程>=2 則抓前後行程距離
+    if(itemCnt>=2){
+        json = JSON.stringify({
+            //終點:A 起點:B
+            placeA : schedule[itemCnt-2],
+            placeB : schedule[itemCnt-1],
+            placeAType : scheduleClass[itemCnt-2], 
+            placeBType : scheduleClass[itemCnt-1]
+        });
+        sendPostRequestJson('/searchRoute', json);
+
+        var result = new XMLHttpRequest();
+        result.open('POST', '/name', false);
+
+        result.onload = function() {
+            if (result.status >= 200 && result.status < 400) {
+                var response = JSON.parse(result.responseText);
+                console.log(response.route);
+                scheduleRouteCur[schedule[itemCnt-1]] = response.route;
+            }   
+            else {
+            // We reached our target server, but it returned an error
+            }
+        };
+        result.onerror = function() {
+        // There was a connection error of some sort
+        };
+        result.send();
+        console.log(scheduleRouteCur)
+        $(document).ready(function(){
+            $(".schedule-item").mouseover(function(event){
+                var tooltipArea = document.getElementsByClassName("select area")[0];
+                var tooltip = document.createElement("h4");
+                tooltip.textContent = scheduleRouteCur[this.value];
+                tooltip.classList.add("tooltip");
+                tooltipArea.appendChild(tooltip); 
+                $(".tooltip").css({"top": (event.pageY) + "px", "left": ($(this).width()) + "px"}).show("fast"); })
+            .mouseout(function(){  
+                $(".tooltip").remove(); 
+            })}
+        )
     }
 }
 
 var scheduleRequest;
+var scheduleClassRequest;
+var scheduleRoute={};
 
+//轉換天數
 function switchSchedule(){
     var index = select.value;
     scheduleList = document.getElementsByClassName('schedule-item');
@@ -251,7 +319,6 @@ function switchSchedule(){
 
     if(index == '0'){
         for (var i=0;i<schedule.length;i++){
-
             createDiv(height='100px', width='100px', setValue = true, valueParameter = schedule[i], placeParameter = scheduleClass[i]);
         }
     }
@@ -272,10 +339,55 @@ function switchSchedule(){
         .catch(error => console.error('Error:', error))
         .then(function(response){
             scheduleRequest = response.schedule;
-            console.log('Success:', response.schedule)
+            scheduleClassRequest = response.scheduleClass;
+            console.log('Success:', response.scheduleClass);
             for (var i=0;i<scheduleRequest.length;i++){
                 createDiv(height='100px', width='100px', setValue = true, valueParameter = scheduleRequest[i])
-            }  
+            }
+
+            for (var i=2;i<=scheduleClassRequest.length;i++){
+                var json = JSON.stringify({
+                    //終點:A 起點:B
+                    placeA : scheduleRequest[i-2],
+                    placeB : scheduleRequest[i-1],
+                    placeAType : scheduleClassRequest[i-2], 
+                    placeBType : scheduleClassRequest[i-1]
+                });
+                sendPostRequestJson('/searchRoute', json);
+
+                var result = new XMLHttpRequest();
+                result.open('POST', '/name', false);
+
+                result.onload = function() {
+                    if (result.status >= 200 && result.status < 400) {
+                        var response = JSON.parse(result.responseText)
+                        routeRequest = response.route;
+                        //console.log('Success:', response.route);
+                        scheduleRoute[scheduleRequest[i-1]] = response.route;
+                    }
+                    else {
+                        // We reached our target server, but it returned an error
+                    }
+                };
+                result.onerror = function() {
+                // There was a connection error of some sort
+                };
+                result.send();
+            }
+
+            $(document).ready(function(){
+                $(".schedule-item").mouseover(function(event){
+                    var tooltipArea = document.getElementsByClassName("select area")[0];
+                    var tooltip = document.createElement("h4");
+                    tooltip.textContent = scheduleRoute[this.value];
+                    tooltip.classList.add("tooltip");
+                    tooltipArea.appendChild(tooltip); 
+                    $(".tooltip").css({"top": (event.pageY) + "px", "left": ($(this).width()) + "px"}).show("fast"); })
+                .mouseout(function(){  
+                    $(".tooltip").remove(); 
+                })}
+            )
+              
         });
         
     }
@@ -292,7 +404,6 @@ function nametest() {
         place : place+type,
         zone : zone
     }));
-    
     
     //response value
     fetch('http://127.0.0.1:5000/name', {
@@ -313,25 +424,16 @@ function nametest() {
             buttonList[i].addEventListener("click", changeState, false)
             buttonList[i].addEventListener("click", getValue, false)
             buttonList[i].addEventListener("click", addScheduleItem, false)
+            buttonList[i].addEventListener("click", switchSchedule, false)
             }
     });
-}
-
-
-function initial(){
-    createButton("大眾運輸")
-    createButton("自行駕駛")
-
-    var buttonList = document.getElementsByClassName("choice")
-    for(var i = 0; i<buttonList.length;i++)
-        buttonList[i].addEventListener("click", changeState, false)
 }
 
 
 var selectRoot = document.getElementsByClassName("select area")[0];
 var select = document.createElement('select');
 select.id = 'select';
-select.style.marginBottom = '15px';
+select.style.marginTop = '15px';
 select.addEventListener('change', switchSchedule);
 var selectList = selectRoot.appendChild(select);
 var option = document.createElement("option");

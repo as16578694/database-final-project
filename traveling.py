@@ -87,12 +87,11 @@ def test():
 
         jsonResult = {}
         jsonResult['name'] = myList
-        print(myList)
         session['jsonResult'] = jsonResult
 
     if request.method == 'GET':
-        print('get')
         db.engine.execute('delete from schedule')
+        db.engine.execute('delete from scheduleClass')
 
     return render_template('Home.html')
 
@@ -104,6 +103,7 @@ def index_name():
 @app.route("/add", methods=['POST'])
 def add():
     schedule=[]
+    scheduleClass = []
     if(request.method=='POST'):
         session.clear()
         search_request = request.get_json()
@@ -111,38 +111,97 @@ def add():
         schedule = search_request['item']
         scheduleClass = search_request['itemClass']
         
-        query = "insert into schedule values("
-        query = query+"'" + dayCnt+"',"
+        queryA = "insert into schedule values("
+        queryA = queryA+"'" + dayCnt+"',"
+
+        queryB = "insert into scheduleClass values("
+        queryB = queryB+"'" + dayCnt+"',"
         
         for i in range(10):
             if i < len(schedule):
-                query = query + "'" + schedule[i] + "',"
-            else :query=query+'NULL,'
+                queryA = queryA + "'" + schedule[i] + "',"
+                queryB = queryB + "'" + scheduleClass[i] + "',"
+            else :
+                queryA = queryA+'NULL,'
+                queryB = queryB+'NULL,'
         
-        query = query[:-1]+");"
-        query_data = db.engine.execute(query)
-
+        queryA = queryA[:-1]+");"
+        queryB = queryB[:-1]+");"
+        db.engine.execute(queryA)
+        db.engine.execute(queryB)
+        
     return "ok"
 
 
 @app.route("/searchSchedule", methods=['POST'])
 def searchSchedule():
     if(request.method=='POST'):
+        session.clear()
         search_request = request.get_json()
         index = str(search_request['index'])
 
-        query = "select * from schedule where day = '"+ index + "' limit 1;"
-        query_data = db.engine.execute(query)
+        queryA = "select * from schedule where day = '"+ index + "' limit 1;"
+        queryDataA = db.engine.execute(queryA).fetchone()
+
+        queryB = "select * from scheduleClass where day = '"+ index + "' limit 1;"
+        queryDataB = db.engine.execute(queryB).fetchone()
         
-        result = query_data.fetchone()
-        myList = []
+        myListA = []
+        myListB = []
         for i in range(1,11):
-            if(result[i] != None):myList.append(result[i])
+            if(queryDataA[i] != None):
+                myListA.append(queryDataA[i])
+                myListB.append(queryDataB[i])
 
         jsonResult = {}
-        jsonResult['schedule'] = myList
+        print(myListA)
+        jsonResult['schedule'] = myListA
+        jsonResult['scheduleClass'] = myListB
         session['jsonResult'] = jsonResult
         
+    return "ok"
+
+@app.route("/searchRoute", methods=["POST"])
+def searchRoute():
+    if request.method == 'POST':
+        session.clear()
+        search_request = request.get_json()
+        mapping = {'S' : 'spot',
+                    'R' : 'restaurant',
+                    'H' : 'hotel'}
+        
+        queryA = ("select mn from (select mn,(x1-y3)*(x1-y3)+(y1-x3)*(y1-x3) as dis " 
+                    "from (select name, Px as x1,Py as y1 from " + mapping[search_request['placeAType']] + " where name like '"  + search_request['placeA'] + "') s,"
+                    "(select name as mn,Px as x3,Py as y3 from metro_coor) m"
+                    ") x order by dis limit 1;")
+
+        queryB = ("select mn from (select mn,(x1-y3)*(x1-y3)+(y1-x3)*(y1-x3) as dis " 
+                    "from (select name, Px as x1,Py as y1 from " + mapping[search_request['placeBType']] + " where name like '"  + search_request['placeB'] + "') s,"
+                    "(select name as mn,Px as x3,Py as y3 from metro_coor) m"
+                    ") x order by dis limit 1;")
+
+        queryDataA = db.engine.execute(queryA).fetchone()
+        queryDataB = db.engine.execute(queryB).fetchone()
+
+        print(queryDataA, queryDataB)
+        
+        queryRoute = ("WITH RECURSIVE t (stationA, stationB, distance, path) AS "
+                        "(SELECT *, CAST(CONCAT(a.stationA,'->', a.stationB) AS CHAR(500)) AS path FROM metro3 a WHERE stationA = '捷運"+queryDataA[0]+"站' "
+                        "UNION ALL SELECT t.stationA, b.stationB, t.distance + b.distance, CAST(CONCAT(t.path,'->',b.stationB) AS CHAR(500)) AS path "
+                        "FROM t INNER JOIN metro3 b ON b.stationA = t.stationB AND INSTR(t.path, b.stationB) <= 0), t1 AS "
+                        "(SELECT *, row_number () over (PARTITION BY stationA, stationB ORDER BY distance) AS rn FROM t) "
+                        "SELECT stationA,stationB, path, distance FROM t1 WHERE rn = 1 and stationA='捷運" + queryDataA[0] +"站' and stationB='捷運" + queryDataB[0]+"站';")
+
+
+        queryData = db.engine.execute(queryRoute).fetchone()
+        print(queryData)
+        jsonResult = {}
+        if queryData != None:
+            jsonResult['route'] = queryData[2]
+        else: jsonResult['route'] = 'None'
+        session['jsonResult'] = jsonResult
+
+
     return "ok"
 
 if __name__ == "__main__":
